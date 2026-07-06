@@ -5,6 +5,8 @@ real en vivo** recibido por tu propia estación ADS-B — con barrido giratorio,
 etiquetas sin solapes, METAR en directo que se teclea solo como un teletipo, y números que ruedan
 como una caja registradora.
 
+![Salvapantallas radar ADS-B con 30 aeronaves reales sobre Ibiza](docs/screenshot.png)
+
 **Demo en vivo (tráfico real sobre Ibiza, ahora mismo):**
 https://strato88.duckdns.org/status/radar.html
 

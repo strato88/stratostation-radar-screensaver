@@ -4,6 +4,8 @@ A full-screen, ATC-style radar screensaver showing **real live air traffic** rec
 ADS-B station — with a rotating sweep, position trails, non-overlapping labels, live METAR that
 types itself out like a teletype, and numbers that roll like a cash register.
 
+![ADS-B radar screensaver showing 30 live aircraft over Ibiza](docs/screenshot.png)
+
 **Live demo (real traffic over Ibiza, right now):**
 https://strato88.duckdns.org/status/radar.html
 
