@@ -1,0 +1,27 @@
+# ADS-B Radar Screensaver — systemd unit example
+#
+# 1. Adjust the paths and environment variables below
+# 2. sudo cp adsb-radar.service /etc/systemd/system/
+# 3. sudo systemctl daemon-reload
+# 4. sudo systemctl enable --now adsb-radar
+
+[Unit]
+Description=ADS-B Radar Screensaver server
+After=network-online.target readsb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Path to your clone of the repository:
+ExecStart=/usr/bin/python3 /home/pi/stratostation-radar-screensaver/server.py
+Environment=RADAR_PORT=8095
+Environment=RADAR_AIRCRAFT_JSON=/run/readsb/aircraft.json
+Environment=RADAR_METAR_STATION=LEIB
+Restart=on-failure
+RestartSec=5
+# Run as an unprivileged user:
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
