@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADS-B Radar Screensaver — Terrain</title>
+<style>
+@font-face{font-family:'Space Grotesk';font-weight:700;src:url('vendor/space-grotesk-700.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Space Grotesk';font-weight:400;src:url('vendor/space-grotesk-400.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'JetBrains Mono';font-weight:400;src:url('vendor/jetbrains-mono-400.woff2') format('woff2');font-display:swap}
+
+:root{
+  --bg:#04060c;--ink:#e8f1f8;--dim:#7d8fa5;--cyan:#4fd8eb;
+  --green:#3ddc84;--red:#ff5d6c;--line:rgba(125,143,165,.18);
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Space Grotesk',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+  color:var(--ink);font-family:var(--sans);cursor:none;-webkit-font-smoothing:antialiased}
+.skyfull{position:relative;width:100vw;height:100vh}
+canvas#radar{position:absolute;inset:0;width:100%;height:100%;display:block}
+.vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.6) 100%)}
+
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.5em;color:var(--cyan);
+  text-transform:uppercase;margin-bottom:8px}
+.subtitle{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.18em}
+
+.sky-bottom{position:absolute;left:0;right:0;bottom:0;padding:0 16px 3vh;text-align:center;
+  pointer-events:none;z-index:2}
+
+.sky-bl{position:absolute;left:0;bottom:0;pointer-events:none;z-index:2;
+  padding:clamp(40px,7vh,80px) clamp(70px,9vw,130px) clamp(24px,5vh,52px) clamp(16px,4vw,56px);
+  background:radial-gradient(ellipse 130% 120% at 0% 100%,rgba(4,6,12,.9) 42%,rgba(4,6,12,.6) 62%,transparent 82%)}
+.bignum{font-size:clamp(46px,6vw,84px);font-weight:700;line-height:1;color:var(--ink);
+  text-shadow:0 0 50px rgba(79,216,235,.4)}
+.bignum small{font-size:15px;color:var(--dim);font-family:var(--mono);letter-spacing:.2em}
+.skylist{margin-top:14px;font-family:var(--mono);font-size:11px;line-height:1.95;color:var(--dim);
+  max-height:60vh;overflow-y:hidden;scrollbar-width:none}
+.skylist::-webkit-scrollbar{display:none}
+.skylist .row{display:flex;justify-content:space-between;gap:16px}
+.skylist .row b{color:var(--cyan);font-weight:400;min-width:86px}
+
+.sky-br{position:absolute;right:clamp(16px,4vw,56px);bottom:clamp(24px,6vh,60px);
+  text-align:right;pointer-events:none;z-index:2;font-family:var(--mono);color:var(--dim)}
+.clock{font-size:clamp(28px,3.6vw,46px);color:var(--ink);letter-spacing:.06em}
+.date{font-size:11px;letter-spacing:.2em;margin-top:6px;text-transform:uppercase}
+.station{font-size:10px;letter-spacing:.2em;margin-top:14px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="skyfull">
+  <canvas id="radar"></canvas>
+  <div class="vignette"></div>
+  <div class="sky-bl">
+    <div class="bignum"><span id="ac-total">0</span> <small id="ac-label">AIRCRAFT</small></div>
+    <div class="skylist" id="ac-list"></div>
+  </div>
+  <div class="sky-br">
+    <div class="clock"><span id="clk-h">--</span>:<span id="clk-m">--</span>:<span id="clk-s">--</span></div>
+    <div class="date" id="hud-date">—</div>
+    <div class="station" id="station-label"></div>
+  </div>
+  <div class="sky-bottom">
+    <div class="kicker" id="kicker-label"></div>
+    <div class="subtitle" id="metar-line"></div>
+  </div>
+</div>
+<script>
+/* =====================================================================
+   CONFIG — edit this block to adapt the radar to YOUR station
+   ===================================================================== */
+const CONFIG = {
+  lat: 38.8728,               // receiver latitude  (decimal degrees)
+  lon: 1.4015,                // receiver longitude (decimal degrees)
+  rangeNM: 150,               // radius of the outer ring, in nautical miles
+  centerX: 0.66,              // radar center as fraction of screen width  (0.5 = centered)
+  centerY: 0.56,              // radar center as fraction of screen height
+  kicker: 'my station · ads-b 1090 MHz',   // footer title line
+  stationLabel: 'LEIB · 38.8728N 1.4015E', // bottom-right corner label
+  aircraftLabel: 'AIRCRAFT',  // label next to the big counter
+  aircraftUrl: 'api/aircraft',// endpoint returning readsb/dump1090 aircraft.json
+  metarUrl: 'api/metar',      // endpoint returning {"raw": "METAR ..."} — set to null to hide
+  coastUrl: 'examples/coast-example.json', // coastline overlay (see README "Terrain view") — null to disable
+  refreshMs: 10000,           // data refresh interval (ms)
+  locale: 'en-GB',            // clock, date & number formatting locale (e.g. 'es-ES', 'en-US')
+  sweepMs: 3200,              // one full sweep revolution (ms)
+  rollMs: 9000,               // "cash register" number roll duration (ms)
+  typeMs: 28                  // typewriter effect, ms per character
+};
+/* ===================================================================== */
+
+const rc = document.getElementById('radar'), rctx = rc.getContext('2d');
+const SLAT = CONFIG.lat, SLON = CONFIG.lon, RANGE = CONFIG.rangeNM;
+const RDPR = Math.min(devicePixelRatio, 2);
+let sweep = 0, blips = [], trails = {}, coast = [];   /* coast: chains of [lon,lat] pairs, converted to NM below */
+
+const toXY = (lat, lon) => [
+  (lon - SLON) * Math.cos(SLAT*Math.PI/180) * 60,
+  (lat - SLAT) * 60
+];
+if (CONFIG.coastUrl){
+  fetch(CONFIG.coastUrl).then(r => r.json()).then(chains => {
+    coast = chains.map(ch => ch.map(([lon, lat]) => toXY(lat, lon)));
+  }).catch(() => {});
+}
+
+document.getElementById('kicker-label').textContent = CONFIG.kicker;
+document.getElementById('station-label').textContent = CONFIG.stationLabel;
+document.getElementById('ac-label').textContent = CONFIG.aircraftLabel;
+
+/* "cash register" effect: ease-out interpolation of the displayed number */
+function animateNum(el, value, fmt, dur){
+  dur = dur || CONFIG.rollMs;
+  if (!el) return;
+  if (el._animTarget === value){ return; }
+  el._animTarget = value;
+  const start = isNaN(parseFloat(el._animCurrent)) ? value : parseFloat(el._animCurrent);
+  const t0 = performance.now();
+  if (el._animId) cancelAnimationFrame(el._animId);
+  function step(now){
+    const k = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    const cur = start + (value - start) * e;
+    el._animCurrent = cur;
+    el.textContent = fmt(cur);
+    el._animId = k < 1 ? requestAnimationFrame(step) : null;
+  }
+  el._animId = requestAnimationFrame(step);
+}
+
+/* typewriter: only re-types from the point where the text differs */
+function typeText(el, str){
+  if (!el || el._typed === str) return;
+  const prev = el._typed || '';
+  el._typed = str;
+  let common = 0;
+  while (common < prev.length && common < str.length && prev[common] === str[common]) common++;
+  if (el._typeId) clearInterval(el._typeId);
+  let i = common;
+  el.textContent = str.slice(0, i) + (i < str.length ? '▌' : '');
+  el._typeId = setInterval(() => {
+    el.textContent = str.slice(0, ++i) + (i < str.length ? '▌' : '');
+    if (i >= str.length) clearInterval(el._typeId);
+  }, CONFIG.typeMs);
+}
+
+const acRows = {}; /* hex -> {el, flight, alt, gs, dst} */
+
+function renderList(){
+  const container = document.getElementById('ac-list');
+  const seen = new Set();
+  for (const b of blips){
+    seen.add(b.hex);
+    let row = acRows[b.hex];
+    if (!row){
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.innerHTML = '<b></b><span></span><span></span><span></span>';
+      container.appendChild(div);
+      const spans = div.querySelectorAll('span');
+      row = acRows[b.hex] = {el:div, flight:div.querySelector('b'),
+        alt:spans[0], gs:spans[1], dst:spans[2]};
+    }
+    typeText(row.flight, b.flight);
+    const grounded = b.alt === 'ground' || (typeof b.alt === 'number' && b.alt < 0);
+    if (grounded){
+      row.alt._animTarget = undefined;
+      row.alt._animCurrent = undefined;
+      row.alt.textContent = 'Ground';
+    } else if (b.alt != null){
+      animateNum(row.alt, b.alt, v => Math.round(v).toLocaleString(CONFIG.locale)+' ft');
+    } else {
+      row.alt.textContent = '—';
+    }
+    if (b.gs != null) animateNum(row.gs, b.gs, v => Math.round(v)+' kt');
+    else row.gs.textContent = '—';
+    animateNum(row.dst, b.d, v => v.toFixed(0)+' NM');
+  }
+  for (const hex in acRows){
+    if (!seen.has(hex)){ acRows[hex].el.remove(); delete acRows[hex]; }
+  }
+  for (const b of blips) container.appendChild(acRows[b.hex].el); /* re-sort by distance */
+}
+
+function setAircraft(list){
+  const now = Date.now();
+  blips = list.filter(a => a.lat != null && a.lon != null).map(a => {
+    const dy = (a.lat - SLAT) * 60;
+    const dx = (a.lon - SLON) * Math.cos(SLAT*Math.PI/180) * 60;
+    return {hex:a.hex, x:dx, y:dy, flight:(a.flight||'').trim() || a.hex,
+            alt:a.alt_baro, gs:a.gs, track:a.track||0, d:Math.hypot(dx,dy)};
+  }).filter(b => b.d <= RANGE*1.5)
+    .sort((a,b) => a.d - b.d);
+  for (const b of blips){
+    (trails[b.hex] = trails[b.hex] || []).push({x:b.x, y:b.y, t:now});
+    if (trails[b.hex].length > 40) trails[b.hex].shift();
+  }
+  for (const h in trails){
+    trails[h] = trails[h].filter(p => now - p.t < 300000);
+    if (!trails[h].length) delete trails[h];
+  }
+  animateNum(document.getElementById('ac-total'), blips.length, v => Math.round(v).toLocaleString(CONFIG.locale));
+  renderList();
+}
+
+function drawRadar(t){
+  const box = rc.parentElement.getBoundingClientRect();
+  const bw = Math.floor(box.width*RDPR), bh = Math.floor(box.height*RDPR);
+  if (!bw || !bh){ requestAnimationFrame(drawRadar); return; }
+  if (rc.width !== bw || rc.height !== bh){ rc.width = bw; rc.height = bh; }
+  const W = bw, H = bh, CX = W*CONFIG.centerX, CY = H*CONFIG.centerY;
+  const SCALE = Math.max(W,H)*.5/RANGE;
+  const maxR = Math.hypot(CX, CY);
+  const px2 = b => [CX + b.x*SCALE, CY - b.y*SCALE];
+  const pxy = p => [CX + p[0]*SCALE, CY - p[1]*SCALE];
+  rctx.clearRect(0,0,W,H);
+
+  /* coastline overlay (optional, see CONFIG.coastUrl) */
+  for (const ch of coast){
+    rctx.beginPath();
+    const [x0, y0] = pxy(ch[0]);
+    rctx.moveTo(x0, y0);
+    for (let i = 1; i < ch.length; i++){
+      const [x, y] = pxy(ch[i]);
+      rctx.lineTo(x, y);
+    }
+    const closed = Math.hypot(ch[0][0]-ch[ch.length-1][0], ch[0][1]-ch[ch.length-1][1]) < .2;
+    if (closed){
+      rctx.closePath();
+      rctx.fillStyle = 'rgba(79,216,235,.045)';
+      rctx.fill();
+    }
+    rctx.strokeStyle = 'rgba(79,216,235,.4)';
+    rctx.lineWidth = 1;
+    rctx.stroke();
+  }
+
+  /* range rings every 25 NM */
+  rctx.lineWidth = 1;
+  rctx.font = `${10*RDPR}px JetBrains Mono, monospace`;
+  for (let nm = 25; nm*SCALE < maxR + 40*RDPR; nm += 25){
+    const major = nm % 50 === 0;
+    rctx.strokeStyle = major ? 'rgba(79,216,235,.14)' : 'rgba(79,216,235,.06)';
+    rctx.beginPath(); rctx.arc(CX, CY, nm*SCALE, 0, 7); rctx.stroke();
+    if (major){
+      rctx.fillStyle = 'rgba(95,122,134,.65)';
+      rctx.textAlign = 'left';
+      rctx.fillText(nm+' NM', CX + 5*RDPR, CY - nm*SCALE + 14*RDPR);
+    }
+  }
+  /* bearing radials every 30° */
+  rctx.textAlign = 'center';
+  for (let i = 0; i < 12; i++){
+    const a = i*Math.PI/6;
+    rctx.strokeStyle = 'rgba(79,216,235,.07)';
+    rctx.beginPath(); rctx.moveTo(CX, CY);
+    rctx.lineTo(CX + maxR*Math.sin(a), CY - maxR*Math.cos(a)); rctx.stroke();
+    const lr = RANGE*SCALE*.985;
+    const lx = CX + lr*Math.sin(a), ly = CY - lr*Math.cos(a);
+    if (lx > 20*RDPR && lx < W-20*RDPR && ly > 20*RDPR && ly < H-16*RDPR){
+      rctx.fillStyle = 'rgba(95,122,134,.8)';
+      rctx.fillText(String(i*30).padStart(3,'0') + '°', lx, ly + 4*RDPR);
+    }
+  }
+  /* outer ring at the configured range */
+  rctx.strokeStyle = 'rgba(79,216,235,.28)'; rctx.lineWidth = 1.5;
+  rctx.beginPath(); rctx.arc(CX, CY, RANGE*SCALE, 0, 7); rctx.stroke();
+
+  /* sweep */
+  sweep = (t/CONFIG.sweepMs) % (Math.PI*2);
+  if (rctx.createConicGradient){
+    const g = rctx.createConicGradient(sweep - Math.PI/2, CX, CY);
+    g.addColorStop(0, 'rgba(79,216,235,.22)');
+    g.addColorStop(.10, 'rgba(79,216,235,0)');
+    g.addColorStop(1, 'rgba(79,216,235,0)');
+    rctx.fillStyle = g;
+    rctx.beginPath(); rctx.moveTo(CX, CY); rctx.arc(CX, CY, maxR, 0, 7); rctx.fill();
+  }
+  rctx.strokeStyle = 'rgba(79,216,235,.7)'; rctx.lineWidth = 1.5;
+  rctx.beginPath(); rctx.moveTo(CX, CY);
+  rctx.lineTo(CX + maxR*Math.sin(sweep), CY - maxR*Math.cos(sweep)); rctx.stroke();
+
+  /* station marker */
+  rctx.fillStyle = '#4fd8eb';
+  rctx.beginPath(); rctx.arc(CX, CY, 4*RDPR, 0, 7); rctx.fill();
+  rctx.strokeStyle = 'rgba(79,216,235,.5)';
+  rctx.beginPath(); rctx.arc(CX, CY, 9*RDPR, 0, 7); rctx.stroke();
+
+  /* position trails */
+  for (const h in trails){
+    const tr = trails[h];
+    for (let i = 1; i < tr.length; i++){
+      const [x1,y1] = px2(tr[i-1]), [x2,y2] = px2(tr[i]);
+      rctx.strokeStyle = `rgba(79,216,235,${i/tr.length*.35})`;
+      rctx.lineWidth = 1;
+      rctx.beginPath(); rctx.moveTo(x1,y1); rctx.lineTo(x2,y2); rctx.stroke();
+    }
+  }
+
+  /* label rectangles already placed this frame, to avoid overlaps */
+  const placedLabels = [];
+  const rectsOverlap = (a,b) => !(a.x2<b.x1 || a.x1>b.x2 || a.y2<b.y1 || a.y1>b.y2);
+
+  for (const b of blips){
+    const [px, py] = px2(b);
+    if (px < -30 || px > W+30 || py < -30 || py > H+30) continue;
+    const ang = Math.atan2(b.x, b.y);
+    let diff = sweep - ((ang % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+    diff = ((diff % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+    const glow = Math.max(.3, 1 - diff/2.4);
+    rctx.save();
+    rctx.translate(px, py); rctx.rotate(b.track*Math.PI/180);
+    rctx.fillStyle = `rgba(170,242,255,${glow})`;
+    const u = RDPR*5;
+    rctx.beginPath();
+    rctx.moveTo(0,-u*1.4); rctx.lineTo(u*.85,u); rctx.lineTo(0,u*.4); rctx.lineTo(-u*.85,u);
+    rctx.closePath(); rctx.fill();
+    rctx.restore();
+
+    const grounded = b.alt === 'ground' || (typeof b.alt === 'number' && b.alt < 0);
+    const parked = grounded && (b.gs == null || b.gs < 5);
+    const tags = [];
+    if (!parked){
+      if (!grounded && b.alt >= 0) tags.push('FL' + String(Math.round(b.alt/100)).padStart(3,'0'));
+      if (b.gs != null) tags.push(Math.round(b.gs) + ' kt');
+    }
+    const tagsStr = tags.join(' · ');
+
+    rctx.textAlign = 'left';
+    rctx.font = `${10*RDPR}px JetBrains Mono, monospace`;
+    const flightW = rctx.measureText(b.flight).width;
+    rctx.font = `${8.5*RDPR}px JetBrains Mono, monospace`;
+    const tagsW = tagsStr ? rctx.measureText(tagsStr).width : 0;
+    const labelW = Math.max(flightW, tagsW);
+    const labelH = tagsStr ? 22*RDPR : 12*RDPR;
+
+    /* candidate positions spiraling outwards (several radii and both sides)
+       so labels spread apart in dense areas */
+    const cands = [];
+    for (const ry of [-6, 16, -26, 36, -46, 56, -66, 76]){
+      cands.push({x: 9*RDPR, y: ry*RDPR});
+      cands.push({x: -labelW - 9*RDPR, y: ry*RDPR});
+    }
+    let chosen = cands[0];
+    for (const c of cands){
+      const rect = {x1: px+c.x, y1: py+c.y-10*RDPR, x2: px+c.x+labelW, y2: py+c.y-10*RDPR+labelH};
+      if (!placedLabels.some(p => rectsOverlap(p, rect))){ chosen = c; placedLabels.push(rect); break; }
+    }
+
+    rctx.fillStyle = `rgba(225,248,255,${Math.min(1, glow*1.05)})`;
+    rctx.font = `${10*RDPR}px JetBrains Mono, monospace`;
+    rctx.fillText(b.flight, px + chosen.x, py + chosen.y);
+    if (tagsStr){
+      rctx.fillStyle = `rgba(165,210,228,${glow*.95})`;
+      rctx.font = `${8.5*RDPR}px JetBrains Mono, monospace`;
+      rctx.fillText(tagsStr, px + chosen.x, py + chosen.y + 12*RDPR);
+    }
+  }
+  requestAnimationFrame(drawRadar);
+}
+requestAnimationFrame(drawRadar);
+
+/* clock: typewriter on first paint, cash-register roll on every following second */
+let clockStarted = false;
+const pad2 = v => String(Math.round(v)).padStart(2, '0');
+function tick(){
+  const now = new Date();
+  const hEl = document.getElementById('clk-h'), mEl = document.getElementById('clk-m'), sEl = document.getElementById('clk-s');
+  if (!clockStarted){
+    clockStarted = true;
+    typeText(hEl, pad2(now.getHours()));
+    typeText(mEl, pad2(now.getMinutes()));
+    typeText(sEl, pad2(now.getSeconds()));
+  } else {
+    animateNum(hEl, now.getHours(), pad2, 500);
+    animateNum(mEl, now.getMinutes(), pad2, 500);
+    animateNum(sEl, now.getSeconds(), pad2, 500);
+  }
+  typeText(document.getElementById('hud-date'), now.toLocaleDateString(CONFIG.locale,
+    {weekday:'long', day:'2-digit', month:'long'}));
+}
+tick();
+setInterval(tick, 1000);
+
+/* static texts: typed once on startup */
+typeText(document.getElementById('kicker-label'), CONFIG.kicker);
+typeText(document.getElementById('station-label'), CONFIG.stationLabel);
+
+function applyMetar(raw){
+  if (!raw) return;
+  typeText(document.getElementById('metar-line'), raw);
+}
+
+async function refresh(){
+  try{
+    const a = await (await fetch(CONFIG.aircraftUrl)).json();
+    if (a.aircraft) setAircraft(a.aircraft);
+  }catch(e){}
+  if (CONFIG.metarUrl){
+    try{
+      const d = await (await fetch(CONFIG.metarUrl)).json();
+      /* accepts {"raw": "..."} or {"metar": {"raw": "..."}} */
+      applyMetar(d.raw || (d.metar && d.metar.raw));
+    }catch(e){}
+  }
+}
+refresh();
+setInterval(refresh, CONFIG.refreshMs);
+</script>
+</body>
+</html>

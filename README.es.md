@@ -9,6 +9,7 @@ como una caja registradora.
 
 **Demo en vivo (tráfico real sobre Ibiza, ahora mismo):**
 https://strato88.duckdns.org/status/radar.html
+· con costa: https://strato88.duckdns.org/status/radar-terrain.html
 
 [English version →](README.md)
 
@@ -86,6 +87,29 @@ Seguridad** y pulsa **Abrir de todos modos**.
 3. Ajustes de Lively (engranaje) → pestaña **Screensaver** → activa usar el wallpaper actual
    como salvapantallas. Opcionalmente instala el `.scr` de Lively desde esa misma pestaña para
    elegirlo desde el diálogo nativo de salvapantallas de Windows.
+
+## Vista con costa (overlay de terreno opcional)
+
+[radar-terrain.html](radar-terrain.html) es una alternativa a `radar.html` — mismo radar en vivo, mismos
+datos, pero con el contorno de la costa dibujado bajo los anillos para que la posición de cada aeronave
+tenga una referencia geográfica, no solo un rumbo y una distancia en NM.
+
+Lee la costa de `CONFIG.coastUrl` (por defecto `examples/coast-example.json`, un array JSON de cadenas
+`[[lon, lat], ...]`, una por costa/isla). El ejemplo incluido cubre Ibiza/Formentera, el resto de las
+Islas Baleares y la costa peninsular de Valencia/Alicante, suficiente para el alcance por defecto de
+150 NM. Pon `coastUrl: null` en el bloque `CONFIG` para desactivar el overlay, o apúntalo a tu propia
+región.
+
+Para generar la costa de tu propia estación: consulta [Overpass API](https://overpass-api.de/api/interpreter)
+pidiendo `way["natural"="coastline"]` dentro de un bounding box alrededor de tu receptor (`out geom;`
+devuelve los puntos de cada segmento en línea), une los segmentos devueltos en cadenas continuas
+emparejando extremos compartidos —OSM corta la costa en trozos arbitrarios en los límites de las
+teselas— y simplifica. Douglas-Peucker normal conserva picos estrechos (espigones, marinas, muelles)
+porque tienen mucha desviación perpendicular; usa **Visvalingam-Whyatt** en su lugar (elimina en cada
+paso el vértice con menor área de triángulo, así los picos finos caen primero) y termina con una pasada
+de suavizado Chaikin (corte de esquinas) para redondear las uniones que queden. Ese es exactamente el
+proceso usado para generar el ejemplo incluido — solo Python estándar (`urllib`, `heapq`), sin
+dependencias extra.
 
 ## Cómo funciona
 

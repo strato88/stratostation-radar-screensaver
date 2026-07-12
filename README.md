@@ -8,6 +8,7 @@ types itself out like a teletype, and numbers that roll like a cash register.
 
 **Live demo (real traffic over Ibiza, right now):**
 https://strato88.duckdns.org/status/radar.html
+· with coastline overlay: https://strato88.duckdns.org/status/radar-terrain.html
 
 [Versión en español →](README.es.md)
 
@@ -83,6 +84,27 @@ and click **Open Anyway**.
 3. Lively settings (gear) → **Screensaver** tab → enable using the current wallpaper as
    screensaver. Optionally install Lively's `.scr` from the same tab to pick it from the native
    Windows screensaver dialog.
+
+## Terrain view (optional coastline overlay)
+
+[radar-terrain.html](radar-terrain.html) is an alternative to `radar.html` — same live radar, same data,
+but with a coastline drawn under the rings so aircraft positions have a geographic reference, not just a
+bearing and a distance in NM.
+
+It reads `CONFIG.coastUrl` (default `examples/coast-example.json`, a JSON array of `[[lon, lat], ...]`
+chains — one array per coastline/island). The bundled example covers Ibiza/Formentera, the rest of the
+Balearic Islands and the Valencia/Alicante mainland coast, which is enough for the default 150 NM range.
+Set `coastUrl: null` in the `CONFIG` block to turn the overlay off, or point it at your own region.
+
+To build coastline data for your own station: query [Overpass API](https://overpass-api.de/api/interpreter)
+for `way["natural"="coastline"]` inside a bounding box around your receiver (`out geom;` returns each way's
+points inline), stitch the returned segments into continuous chains by matching shared endpoints — OSM
+splits coastlines into arbitrary pieces at tile boundaries — then simplify. Plain Douglas-Peucker keeps
+narrow spikes (piers, breakwaters, marina jetties) because they have high perpendicular deviation; use
+**Visvalingam-Whyatt** instead (drops the vertex with the smallest triangle area each step, so thin spikes
+go first) and finish with one pass of Chaikin corner-cutting to round the remaining joints. That's the
+whole pipeline used to generate the bundled example — plain Python stdlib (`urllib`, `heapq`), no extra
+dependencies.
 
 ## How it works
 
