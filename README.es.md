@@ -56,7 +56,15 @@ cd stratostation-radar-screensaver
 
 ## Instalar el salvapantallas
 
-### macOS
+### macOS — instalación rápida (compilado, sin configuración)
+
+Descarga **[ADSB-Radar-Screensaver-macOS.zip](https://github.com/strato88/stratostation-radar-screensaver/releases/download/macos-v1.0/ADSB-Radar-Screensaver-macOS.zip)**,
+descomprime y haz doble clic en `ADSB Radar.saver` — macOS ofrecerá instalarlo. Viene precargado
+con el feed en vivo de Ibiza, y puedes apuntarlo a tu propio receptor desde **Opciones**. Al no
+estar notarizado por Apple, si Gatekeeper lo bloquea ve a **Ajustes del Sistema → Privacidad y
+Seguridad** y pulsa **Abrir de todos modos**.
+
+### macOS — instalación manual (cargador genérico)
 
 1. Descarga [WebViewScreenSaver](https://github.com/liquidx/webviewscreensaver/releases)
    (gratuito, código abierto) y haz doble clic en `WebViewScreenSaver.saver` para instalarlo.
