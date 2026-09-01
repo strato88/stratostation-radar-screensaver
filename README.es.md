@@ -121,27 +121,35 @@ dependencias extra.
 
 ## Despliegue continuo (opcional)
 
-[.github/workflows/deploy.yml](.github/workflows/deploy.yml) actualiza (fast-forward) tu clon de
-producción cada vez que cambia `main`, usando un **runner de GitHub Actions autohospedado**
-instalado en tu propio servidor de la estación — nada corre en la nube de GitHub, y no necesitas
-abrir ningún puerto entrante (el runner se conecta hacia afuera a GitHub, no al revés).
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) actualiza tu clon de producción cada
+vez que cambia `main`, usando un **runner de GitHub Actions autohospedado** instalado en tu propio
+servidor de la estación — nada corre en la nube de GitHub, y no necesitas abrir ningún puerto
+entrante (el runner se conecta hacia afuera a GitHub, no al revés).
+
+Es normal que un clon de producción tenga personalizaciones locales permanentes —un bloque `CONFIG`
+editado a mano, páginas propias, lo que sea— que nunca van a coincidir con `main`. El workflow hace
+fast-forward cuando puede, un merge real cuando los cambios de `main` y tus personalizaciones no
+tocan las mismas líneas, y solo cuando de verdad chocan da marcha atrás limpiamente (nunca deja
+marcadores de conflicto en vivo en un archivo que el servidor está sirviendo) y falla el job para
+que te enteres. Resuélvelo a mano por SSH — como cualquier conflicto de git: `cd $DEPLOY_PATH`,
+`git status`, arregla los archivos marcados, `git add`, `git commit`.
 
 1. En el servidor, ve a **Settings → Actions → Runners → New self-hosted runner** de este repo y
-   sigue los comandos de descarga/configuración que te da GitHub. Instálalo como servicio para que
-   sobreviva a reinicios:
+   sigue los comandos de descarga/configuración que te da GitHub (elige el paquete según la
+   arquitectura de tu servidor — `uname -m`: `aarch64` → arm64, `armv7l`/`armv6l` → arm, `x86_64` →
+   x64). Instálalo como servicio para que sobreviva a reinicios:
    ```bash
    sudo ./svc.sh install
    sudo ./svc.sh start
    ```
 2. Añade una **variable** de repositorio (Settings → Secrets and variables → Actions → Variables)
    llamada `DEPLOY_PATH` con la ruta absoluta de tu clon de producción en ese servidor, p. ej.
-   `/home/pi/stratostation-radar-screensaver`.
-3. Asegúrate de que ese clon tenga `origin` apuntando a este repo y esté en `main` sin cambios sin
-   commitear. El workflow usa un merge fast-forward-only, así que si has editado el bloque
-   `CONFIG` a mano directamente en ese clon (en vez de mantenerlo en tu propia rama/fork), el
-   despliegue fallará en vez de sobrescribir tus cambios silenciosamente — en ese caso haz el
-   merge/rebase a mano.
-4. Si instalaste [examples/adsb-radar.service](examples/adsb-radar.service), el workflow intenta
+   `/home/pi/stratostation-radar-screensaver`. Si tus archivos de producción todavía no son un clon
+   git, conviértelos primero: `git init`, `git add -A && git commit`, `git remote add origin <este
+   repo>`, `git fetch origin`, y luego `git merge origin/main --allow-unrelated-histories` resolviendo
+   los conflictos de tus archivos personalizados de la misma forma (`git checkout --ours <archivo>`
+   conserva tu versión de producción intacta en ese merge inicial).
+3. Si instalaste [examples/adsb-radar.service](examples/adsb-radar.service), el workflow intenta
    hacer `sudo systemctl restart adsb-radar.service` después de cada pull (no hace nada si no lo
    usas, y no falla el despliegue si el comando falla — el usuario del runner necesita `sudo` sin
    contraseña para ese comando concreto si quieres que el reinicio realmente ocurra).

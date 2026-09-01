@@ -1,11 +1,19 @@
 name: Deploy to production
 
 # Runs on YOUR OWN self-hosted runner (registered on the station server, see
-# "Continuous deployment" in README.md) whenever main changes. It fast-forwards
-# the production clone and, if you use the bundled systemd unit, restarts it.
+# "Continuous deployment" in README.md) whenever main changes. It updates the
+# production clone and, if you use the bundled systemd unit, restarts it.
 #
 # This never runs on GitHub-hosted runners: without a self-hosted runner
 # registered for this repo, the job just stays queued and does nothing.
+#
+# A production clone can carry permanent local customizations (a hand-edited
+# CONFIG block, extra pages, whatever) that will never match main — that's
+# expected, not an error. So this fast-forwards when it can, does a real merge
+# when main and the local customizations don't overlap, and only when the same
+# lines are touched on both sides does it back out cleanly (never leaving
+# conflict markers live in files the server is serving) and fail the job so
+# you get notified and can resolve it by hand over SSH.
 
 on:
   push:
@@ -28,11 +36,23 @@ jobs:
             exit 1
           fi
           cd "$DEPLOY_PATH"
+
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "::error::$DEPLOY_PATH has uncommitted local changes. Commit or stash them by hand over SSH, then re-run this workflow."
+            exit 1
+          fi
+
           git fetch origin main
-          # Fast-forward only: if the production clone has local edits (e.g. a
-          # hand-edited CONFIG block) that main doesn't have, this fails loudly
-          # instead of silently overwriting them.
-          git merge --ff-only origin/main
+
+          if git merge --ff-only origin/main; then
+            echo "Fast-forwarded to $(git rev-parse --short HEAD)."
+          elif git merge --no-edit origin/main; then
+            echo "Merged origin/main into local customizations (new commit $(git rev-parse --short HEAD))."
+          else
+            git merge --abort
+            echo "::error::origin/main conflicts with local customizations in $DEPLOY_PATH. Production files were left untouched — resolve the conflict by hand over SSH (see 'Continuous deployment' in README.md), commit, then re-run this workflow."
+            exit 1
+          fi
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
 
