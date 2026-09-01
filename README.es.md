@@ -96,6 +96,9 @@ de aeronaves (abajo a la izquierda) ni el texto de pie de página (línea kicker
 Solo quedan el reloj, la fecha y la etiqueta de la estación en la esquina. Mismo bloque `CONFIG`, mismos
 endpoints del servidor.
 
+También incluye el overlay de costa de la vista con terreno de abajo (`CONFIG.coastUrl`, activado por
+defecto con el ejemplo de Ibiza incluido) — pon `coastUrl: null` en su bloque `CONFIG` para desactivarlo.
+
 ## Vista con costa (overlay de terreno opcional)
 
 [radar-terrain.html](radar-terrain.html) es una alternativa a `radar.html` — mismo radar en vivo, mismos
