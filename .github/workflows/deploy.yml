@@ -1,0 +1,43 @@
+name: Deploy to production
+
+# Runs on YOUR OWN self-hosted runner (registered on the station server, see
+# "Continuous deployment" in README.md) whenever main changes. It fast-forwards
+# the production clone and, if you use the bundled systemd unit, restarts it.
+#
+# This never runs on GitHub-hosted runners: without a self-hosted runner
+# registered for this repo, the job just stays queued and does nothing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest changes into the production clone
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_PATH:-}" ]; then
+            echo "::error::Repository variable DEPLOY_PATH is not set. See 'Continuous deployment' in README.md."
+            exit 1
+          fi
+          cd "$DEPLOY_PATH"
+          git fetch origin main
+          # Fast-forward only: if the production clone has local edits (e.g. a
+          # hand-edited CONFIG block) that main doesn't have, this fails loudly
+          # instead of silently overwriting them.
+          git merge --ff-only origin/main
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+
+      - name: Restart the radar service
+        # Optional: only relevant if you installed examples/adsb-radar.service.
+        # Harmless no-op (and non-fatal) if that unit isn't installed.
+        continue-on-error: true
+        run: sudo systemctl restart adsb-radar.service

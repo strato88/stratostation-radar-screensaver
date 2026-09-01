@@ -113,6 +113,34 @@ go first) and finish with one pass of Chaikin corner-cutting to round the remain
 whole pipeline used to generate the bundled example — plain Python stdlib (`urllib`, `heapq`), no extra
 dependencies.
 
+## Continuous deployment (optional)
+
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) fast-forwards your production clone
+whenever `main` changes, using a **self-hosted GitHub Actions runner** installed on your own
+station server — nothing runs on GitHub's cloud runners, and you don't need to open any inbound
+port (the runner connects out to GitHub, not the other way around).
+
+1. On the server, go to this repo's **Settings → Actions → Runners → New self-hosted runner** and
+   follow GitHub's own download/configure commands. Install it as a service so it survives reboots:
+   ```bash
+   sudo ./svc.sh install
+   sudo ./svc.sh start
+   ```
+2. Add a repository **variable** (Settings → Secrets and variables → Actions → Variables) named
+   `DEPLOY_PATH` set to the absolute path of your production clone on that server, e.g.
+   `/home/pi/stratostation-radar-screensaver`.
+3. Make sure that clone's `origin` remote points at this repo and it's checked out on `main` with
+   no uncommitted changes. The workflow uses a fast-forward-only merge, so if you've hand-edited
+   the `CONFIG` block directly in that clone (instead of keeping it in your own branch/fork) the
+   deploy will fail loudly rather than overwrite your edits — merge/rebase manually in that case.
+4. If you installed [examples/adsb-radar.service](examples/adsb-radar.service), the workflow tries
+   to `sudo systemctl restart adsb-radar.service` after every pull (harmless no-op if you don't use
+   it, and non-fatal if it fails — the runner user needs passwordless `sudo` for that one command
+   if you want the restart to actually happen).
+
+Without a registered runner, the workflow simply stays queued and does nothing — safe to merge
+even if you haven't set this up yet.
+
 ## How it works
 
 - `server.py` (~100 lines, stdlib only) serves the static page, relays your decoder's
