@@ -92,6 +92,9 @@ radar — rings, sweep, trails, blip labels, clock — but without the aircraft 
 (bottom-left) and without the footer text (bottom-center kicker + METAR line). Only the clock,
 date and station label remain in the corner. Same `CONFIG` block, same server endpoints.
 
+It also bundles the coastline overlay from the terrain view below (`CONFIG.coastUrl`, on by default
+using the bundled Ibiza example) — set `coastUrl: null` in its `CONFIG` block to turn it off.
+
 ## Terrain view (optional coastline overlay)
 
 [radar-terrain.html](radar-terrain.html) is an alternative to `radar.html` — same live radar, same data,

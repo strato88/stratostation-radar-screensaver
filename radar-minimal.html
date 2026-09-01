@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ADS-B Radar Screensaver — Minimal</title>
+<title>ADS-B Radar Screensaver — Minimal + Terrain</title>
 <style>
 @font-face{font-family:'Space Grotesk';font-weight:700;src:url('vendor/space-grotesk-700.woff2') format('woff2');font-display:swap}
 @font-face{font-family:'Space Grotesk';font-weight:400;src:url('vendor/space-grotesk-400.woff2') format('woff2');font-display:swap}
@@ -52,6 +52,7 @@ const CONFIG = {
   centerY: 0.56,              // radar center as fraction of screen height
   stationLabel: 'LEIB · 38.8728N 1.4015E', // bottom-right corner label
   aircraftUrl: 'api/aircraft',// endpoint returning readsb/dump1090 aircraft.json
+  coastUrl: 'examples/coast-example.json', // coastline overlay (see README "Terrain view") — null to disable
   refreshMs: 10000,           // data refresh interval (ms)
   locale: 'en-GB',            // clock, date & number formatting locale (e.g. 'es-ES', 'en-US')
   sweepMs: 3200,              // one full sweep revolution (ms)
@@ -63,7 +64,17 @@ const CONFIG = {
 const rc = document.getElementById('radar'), rctx = rc.getContext('2d');
 const SLAT = CONFIG.lat, SLON = CONFIG.lon, RANGE = CONFIG.rangeNM;
 const RDPR = Math.min(devicePixelRatio, 2);
-let sweep = 0, blips = [], trails = {};
+let sweep = 0, blips = [], trails = {}, coast = [];   /* coast: chains of [lon,lat] pairs, converted to NM below */
+
+const toXY = (lat, lon) => [
+  (lon - SLON) * Math.cos(SLAT*Math.PI/180) * 60,
+  (lat - SLAT) * 60
+];
+if (CONFIG.coastUrl){
+  fetch(CONFIG.coastUrl).then(r => r.json()).then(chains => {
+    coast = chains.map(ch => ch.map(([lon, lat]) => toXY(lat, lon)));
+  }).catch(() => {});
+}
 
 /* "cash register" effect: ease-out interpolation of the displayed number */
 function animateNum(el, value, fmt, dur){
@@ -129,7 +140,28 @@ function drawRadar(t){
   const SCALE = Math.max(W,H)*.5/RANGE;
   const maxR = Math.hypot(CX, CY);
   const px2 = b => [CX + b.x*SCALE, CY - b.y*SCALE];
+  const pxy = p => [CX + p[0]*SCALE, CY - p[1]*SCALE];
   rctx.clearRect(0,0,W,H);
+
+  /* coastline overlay (optional, see CONFIG.coastUrl) */
+  for (const ch of coast){
+    rctx.beginPath();
+    const [x0, y0] = pxy(ch[0]);
+    rctx.moveTo(x0, y0);
+    for (let i = 1; i < ch.length; i++){
+      const [x, y] = pxy(ch[i]);
+      rctx.lineTo(x, y);
+    }
+    const closed = Math.hypot(ch[0][0]-ch[ch.length-1][0], ch[0][1]-ch[ch.length-1][1]) < .2;
+    if (closed){
+      rctx.closePath();
+      rctx.fillStyle = 'rgba(79,216,235,.045)';
+      rctx.fill();
+    }
+    rctx.strokeStyle = 'rgba(79,216,235,.4)';
+    rctx.lineWidth = 1;
+    rctx.stroke();
+  }
 
   /* range rings every 25 NM */
   rctx.lineWidth = 1;
