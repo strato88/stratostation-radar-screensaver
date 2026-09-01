@@ -85,6 +85,13 @@ and click **Open Anyway**.
    screensaver. Optionally install Lively's `.scr` from the same tab to pick it from the native
    Windows screensaver dialog.
 
+## Minimal view (no aircraft list, no footer text)
+
+[radar-minimal.html](radar-minimal.html) is a stripped-down alternative to `radar.html`: same live
+radar — rings, sweep, trails, blip labels, clock — but without the aircraft list/counter panel
+(bottom-left) and without the footer text (bottom-center kicker + METAR line). Only the clock,
+date and station label remain in the corner. Same `CONFIG` block, same server endpoints.
+
 ## Terrain view (optional coastline overlay)
 
 [radar-terrain.html](radar-terrain.html) is an alternative to `radar.html` — same live radar, same data,
