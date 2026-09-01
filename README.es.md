@@ -88,6 +88,14 @@ Seguridad** y pulsa **Abrir de todos modos**.
    como salvapantallas. Opcionalmente instala el `.scr` de Lively desde esa misma pestaña para
    elegirlo desde el diálogo nativo de salvapantallas de Windows.
 
+## Vista minimal (sin lista de aeronaves ni texto de pie)
+
+[radar-minimal.html](radar-minimal.html) es una alternativa reducida de `radar.html`: mismo radar en
+vivo —anillos, barrido, estelas, etiquetas de cada aeronave, reloj— pero sin el panel de la lista/contador
+de aeronaves (abajo a la izquierda) ni el texto de pie de página (línea kicker + METAR abajo en el centro).
+Solo quedan el reloj, la fecha y la etiqueta de la estación en la esquina. Mismo bloque `CONFIG`, mismos
+endpoints del servidor.
+
 ## Vista con costa (overlay de terreno opcional)
 
 [radar-terrain.html](radar-terrain.html) es una alternativa a `radar.html` — mismo radar en vivo, mismos
