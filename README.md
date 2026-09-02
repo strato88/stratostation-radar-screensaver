@@ -61,7 +61,9 @@ Download **[ADSB-Radar-Screensaver-macOS.zip](https://github.com/strato88/strato
 unzip it and double-click `ADSB Radar.saver` — macOS will offer to install it. It comes preloaded
 with the live Ibiza feed, and you can point it at your own receiver from **Options**. Since it is
 not notarized by Apple, if Gatekeeper blocks it go to **System Settings → Privacy & Security**
-and click **Open Anyway**.
+and click **Open Anyway**. Want the [minimal view](#minimal-view-no-aircraft-list-no-footer-text)
+instead (no aircraft list, no footer text)? Same **Options** panel — replace `radar.html` with
+`radar-minimal.html` at the end of the URL.
 
 ### macOS — manual setup (generic loader)
 
@@ -71,7 +73,8 @@ and click **Open Anyway**.
 2. **System Settings → Wallpaper → Screen Saver** → select **WebViewScreenSaver** → **Options**:
    - Untick *Fetch URLs Remotely*.
    - In **Addresses**, remove the sample URL and add yours:
-     `http://<host>:8095/radar.html` (or your public HTTPS URL).
+     `http://<host>:8095/radar.html` (or your public HTTPS URL) — swap in
+     `radar-minimal.html` for the [minimal view](#minimal-view-no-aircraft-list-no-footer-text).
    - Set *Seconds* to a large value (e.g. `999999`) — the page refreshes its own data.
 3. Multiple displays: enable **"Show on all displays"** next to the preview.
 
@@ -80,7 +83,8 @@ and click **Open Anyway**.
 1. Install [Lively Wallpaper](https://rocksdanister.github.io/lively/) (free, open source) —
    use the **installer** version, not the Microsoft Store one, so the screensaver runs without
    the app open.
-2. In Lively: **+** → **Webpage/URL** tab → paste your radar URL.
+2. In Lively: **+** → **Webpage/URL** tab → paste your radar URL (use `radar-minimal.html`
+   instead of `radar.html` for the [minimal view](#minimal-view-no-aircraft-list-no-footer-text)).
 3. Lively settings (gear) → **Screensaver** tab → enable using the current wallpaper as
    screensaver. Optionally install Lively's `.scr` from the same tab to pick it from the native
    Windows screensaver dialog.

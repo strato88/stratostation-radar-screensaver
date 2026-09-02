@@ -63,7 +63,10 @@ Descarga **[ADSB-Radar-Screensaver-macOS.zip](https://github.com/strato88/strato
 descomprime y haz doble clic en `ADSB Radar.saver` — macOS ofrecerá instalarlo. Viene precargado
 con el feed en vivo de Ibiza, y puedes apuntarlo a tu propio receptor desde **Opciones**. Al no
 estar notarizado por Apple, si Gatekeeper lo bloquea ve a **Ajustes del Sistema → Privacidad y
-Seguridad** y pulsa **Abrir de todos modos**.
+Seguridad** y pulsa **Abrir de todos modos**. ¿Prefieres la
+[vista minimal](#vista-minimal-sin-lista-de-aeronaves-ni-texto-de-pie) (sin lista de aeronaves
+ni texto de pie)? Mismo panel de **Opciones** — sustituye `radar.html` por `radar-minimal.html`
+al final de la URL.
 
 ### macOS — instalación manual (cargador genérico)
 
@@ -74,7 +77,8 @@ Seguridad** y pulsa **Abrir de todos modos**.
    **WebViewScreenSaver** → **Opciones**:
    - Desmarca *Fetch URLs Remotely*.
    - En **Addresses**, borra la URL de ejemplo y añade la tuya:
-     `http://<host>:8095/radar.html` (o tu URL pública HTTPS).
+     `http://<host>:8095/radar.html` (o tu URL pública HTTPS) — cambia a `radar-minimal.html`
+     para la [vista minimal](#vista-minimal-sin-lista-de-aeronaves-ni-texto-de-pie).
    - Pon en *Seconds* un valor grande (p. ej. `999999`) — la página ya refresca sola sus datos.
 3. Varias pantallas: activa **"Mostrar en todas las pantallas"** junto a la vista previa.
 
@@ -83,7 +87,8 @@ Seguridad** y pulsa **Abrir de todos modos**.
 1. Instala [Lively Wallpaper](https://rocksdanister.github.io/lively/) (gratuito, código
    abierto) — usa la versión **installer**, no la de Microsoft Store, para que el salvapantallas
    funcione sin tener la app abierta.
-2. En Lively: **+** → pestaña **Webpage/URL** → pega tu URL del radar.
+2. En Lively: **+** → pestaña **Webpage/URL** → pega tu URL del radar (usa `radar-minimal.html`
+   en vez de `radar.html` para la [vista minimal](#vista-minimal-sin-lista-de-aeronaves-ni-texto-de-pie)).
 3. Ajustes de Lively (engranaje) → pestaña **Screensaver** → activa usar el wallpaper actual
    como salvapantallas. Opcionalmente instala el `.scr` de Lively desde esa misma pestaña para
    elegirlo desde el diálogo nativo de salvapantallas de Windows.
