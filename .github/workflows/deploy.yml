@@ -1,6 +1,6 @@
 name: Deploy to production
 
-# Runs on YOUR OWN self-hosted runner (registered on the station server, see
+# Runs scripts/desplegar.sh on YOUR OWN self-hosted runner (registered on the station server, see
 # "Continuous deployment" in README.md) whenever main changes. It updates the
 # production clone and, if you use the bundled systemd unit, restarts it.
 #
@@ -28,36 +28,17 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - name: Pull latest changes into the production clone
+      # The deploy logic lives in scripts/desplegar.sh, which you can also run
+      # by hand on the server; running it from this checkout means the job
+      # always uses the script of the commit being deployed.
+      - uses: actions/checkout@v4
+
+      - name: Update the production clone (scripts/desplegar.sh)
         run: |
-          set -euo pipefail
           if [ -z "${DEPLOY_PATH:-}" ]; then
             echo "::error::Repository variable DEPLOY_PATH is not set. See 'Continuous deployment' in README.md."
             exit 1
           fi
-          cd "$DEPLOY_PATH"
-
-          if ! git diff --quiet || ! git diff --cached --quiet; then
-            echo "::error::$DEPLOY_PATH has uncommitted local changes. Commit or stash them by hand over SSH, then re-run this workflow."
-            exit 1
-          fi
-
-          git fetch origin main
-
-          if git merge --ff-only origin/main; then
-            echo "Fast-forwarded to $(git rev-parse --short HEAD)."
-          elif git merge --no-edit origin/main; then
-            echo "Merged origin/main into local customizations (new commit $(git rev-parse --short HEAD))."
-          else
-            git merge --abort
-            echo "::error::origin/main conflicts with local customizations in $DEPLOY_PATH. Production files were left untouched — resolve the conflict by hand over SSH (see 'Continuous deployment' in README.md), commit, then re-run this workflow."
-            exit 1
-          fi
+          bash scripts/desplegar.sh
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-
-      - name: Restart the radar service
-        # Optional: only relevant if you installed examples/adsb-radar.service.
-        # Harmless no-op (and non-fatal) if that unit isn't installed.
-        continue-on-error: true
-        run: sudo systemctl restart adsb-radar.service

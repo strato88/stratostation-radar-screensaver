@@ -124,7 +124,7 @@ dependencias extra.
 
 ## Despliegue continuo (opcional)
 
-[.github/workflows/deploy.yml](.github/workflows/deploy.yml) actualiza tu clon de producción cada
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) ejecuta [scripts/desplegar.sh](scripts/desplegar.sh), que actualiza tu clon de producción cada
 vez que cambia `main`, usando un **runner de GitHub Actions autohospedado** instalado en tu propio
 servidor de la estación — nada corre en la nube de GitHub, y no necesitas abrir ningún puerto
 entrante (el runner se conecta hacia afuera a GitHub, no al revés).
@@ -159,6 +159,14 @@ que te enteres. Resuélvelo a mano por SSH — como cualquier conflicto de git: 
 
 Sin un runner registrado, el workflow simplemente se queda en cola sin hacer nada — es seguro
 mergearlo aunque todavía no lo hayas configurado.
+
+El mismo guion se lanza a mano en el servidor, con o sin runner — por ejemplo, cuando GitHub
+Actions no está disponible:
+
+```bash
+bash /ruta/al/clon/de/produccion/scripts/desplegar.sh --check   # qué cambiaría, sin tocar nada
+bash /ruta/al/clon/de/produccion/scripts/desplegar.sh           # desplegar
+```
 
 ## Cómo funciona
 
