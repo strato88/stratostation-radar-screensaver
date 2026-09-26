@@ -118,7 +118,7 @@ dependencies.
 
 ## Continuous deployment (optional)
 
-[.github/workflows/deploy.yml](.github/workflows/deploy.yml) updates your production clone whenever
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) runs [scripts/desplegar.sh](scripts/desplegar.sh), which updates your production clone whenever
 `main` changes, using a **self-hosted GitHub Actions runner** installed on your own station server —
 nothing runs on GitHub's cloud runners, and you don't need to open any inbound port (the runner
 connects out to GitHub, not the other way around).
@@ -153,6 +153,14 @@ hand over SSH — same idea as any git conflict: `cd $DEPLOY_PATH`, `git status`
 
 Without a registered runner, the workflow simply stays queued and does nothing — safe to merge
 even if you haven't set this up yet.
+
+The same script runs by hand on the server, with or without the runner — for instance when GitHub
+Actions is unavailable:
+
+```bash
+bash /path/to/production/clone/scripts/desplegar.sh --check   # what would change, touching nothing
+bash /path/to/production/clone/scripts/desplegar.sh           # deploy
+```
 
 ## How it works
 
