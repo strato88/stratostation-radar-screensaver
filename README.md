@@ -90,7 +90,8 @@ and click **Open Anyway**.
 [radar-minimal.html](radar-minimal.html) is a stripped-down alternative to `radar.html`: same live
 radar — rings, sweep, trails, blip labels, clock — but without the aircraft list/counter panel
 (bottom-left) and without the footer text (bottom-center kicker + METAR line). Only the clock,
-date and station label remain in the corner. Same `CONFIG` block, same server endpoints.
+date and station label remain in the corner, plus an optional arrivals list above them (see
+[Arrivals](#arrivals-optional-minimal-view)). Same `CONFIG` block, same server endpoints.
 
 It also bundles the coastline overlay from the terrain view below (`CONFIG.coastUrl`, on by default
 using the bundled Ibiza example) — set `coastUrl: null` in its `CONFIG` block to turn it off.
@@ -115,6 +116,30 @@ narrow spikes (piers, breakwaters, marina jetties) because they have high perpen
 go first) and finish with one pass of Chaikin corner-cutting to round the remaining joints. That's the
 whole pipeline used to generate the bundled example — plain Python stdlib (`urllib`, `heapq`), no extra
 dependencies.
+
+## Arrivals (optional, minimal view)
+
+`radar-minimal.html` can list today's arrivals at your airport right above the clock (origin ICAO,
+flight, time) and mark the arriving aircraft on the radar itself: a thin ring around the blip and an
+extra label line, `LEBL → 17:41`. A delayed flight shows its estimated time in amber; cancelled and
+diverted ones carry `CNL` / `DIV` in red; a flight landed in the last 15 minutes stays dimmed. If the
+feed stops updating, the list dims and the header reads `NOT UPDATED SINCE hh:mm`.
+
+It reads `CONFIG.arrivalsUrl` once a minute (`null` turns it off; if the URL fails the list simply
+doesn't show). The feed is JSON:
+
+```json
+{"ok": true, "leido": 1792771020, "viejo": false,
+ "vuelos": [{"vuelo": "VY 3916", "matricula": "EC-MLD", "origen_icao": "LEBL",
+             "prog": "17:41", "eta": "17:45", "retraso_min": 4, "estado": "en_vuelo"}]}
+```
+
+`estado` is one of `programado`, `en_vuelo`, `aterrizado`, `en_calzos`, `cancelado`, `desviado`;
+`leido` is when the data was read (Unix time) and `viejo: true` flags an old copy. An aircraft is matched
+to its arrival by registration (`r` in `aircraft.json`, present when readsb runs with an aircraft
+database) or by callsign (the flight number, also translating IATA airline codes such as `VY` to ICAO
+ones such as `VLG`). Airlines that fly with alphanumeric callsigns (`EZY57AB`) can only be matched by
+registration.
 
 ## Continuous deployment (optional)
 
