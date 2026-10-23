@@ -70,9 +70,9 @@ canvas#radar{position:absolute;inset:0;width:100%;height:100%;display:block}
 const CONFIG = {
   lat: 38.8728,               // receiver latitude  (decimal degrees)
   lon: 1.4015,                // receiver longitude (decimal degrees)
-  rangeNM: 150,               // radius of the outer ring, in nautical miles
+  rangeNM: 59,                // radius of the outer ring, in nautical miles
   centerX: 0.66,              // radar center as fraction of screen width  (0.5 = centered)
-  centerY: 0.56,              // radar center as fraction of screen height
+  centerY: 0.50,              // radar center as fraction of screen height
   stationLabel: 'LEIB · 38.8728N 1.4015E', // bottom-right corner label
   aircraftUrl: 'api/aircraft',// endpoint returning readsb/dump1090 aircraft.json
   coastUrl: 'examples/coast-example.json', // coastline overlay (see README "Terrain view") — null to disable
@@ -139,13 +139,18 @@ function typeText(el, str){
 
 function setAircraft(list){
   const now = Date.now();
+  /* keep every aircraft that can be on screen: out to the farthest corner, whatever the zoom and centre */
+  const vw = innerWidth, vh = innerHeight;
+  const viewNM = Math.hypot(Math.max(CONFIG.centerX, 1 - CONFIG.centerX)*vw,
+                            Math.max(CONFIG.centerY, 1 - CONFIG.centerY)*vh) / (Math.max(vw, vh)*.5/RANGE);
+  const keepNM = Math.max(RANGE*1.5, viewNM + 10);
   blips = list.filter(a => a.lat != null && a.lon != null).map(a => {
     const dy = (a.lat - SLAT) * 60;
     const dx = (a.lon - SLON) * Math.cos(SLAT*Math.PI/180) * 60;
     return {hex:a.hex, x:dx, y:dy, flight:(a.flight||'').trim() || a.hex,
             callsign:(a.flight||'').trim(), reg:a.r || '',
             alt:a.alt_baro, gs:a.gs, track:a.track||0, d:Math.hypot(dx,dy)};
-  }).filter(b => b.d <= RANGE*1.5)
+  }).filter(b => b.d <= keepNM)
     .sort((a,b) => a.d - b.d);
   for (const b of blips){
     (trails[b.hex] = trails[b.hex] || []).push({x:b.x, y:b.y, t:now});
@@ -164,7 +169,7 @@ function drawRadar(t){
   if (rc.width !== bw || rc.height !== bh){ rc.width = bw; rc.height = bh; }
   const W = bw, H = bh, CX = W*CONFIG.centerX, CY = H*CONFIG.centerY;
   const SCALE = Math.max(W,H)*.5/RANGE;
-  const maxR = Math.hypot(CX, CY);
+  const maxR = Math.hypot(Math.max(CX, W - CX), Math.max(CY, H - CY));   /* to the farthest corner */
   const px2 = b => [CX + b.x*SCALE, CY - b.y*SCALE];
   const pxy = p => [CX + p[0]*SCALE, CY - p[1]*SCALE];
   rctx.clearRect(0,0,W,H);
