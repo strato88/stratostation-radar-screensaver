@@ -144,7 +144,10 @@ function setAircraft(list){
   const viewNM = Math.hypot(Math.max(CONFIG.centerX, 1 - CONFIG.centerX)*vw,
                             Math.max(CONFIG.centerY, 1 - CONFIG.centerY)*vh) / (Math.max(vw, vh)*.5/RANGE);
   const keepNM = Math.max(RANGE*1.5, viewNM + 10);
-  blips = list.filter(a => a.lat != null && a.lon != null).map(a => {
+  /* aircraft on the ground (readsb alt_baro "ground") are not drawn, and lose their trail on landing */
+  const onGround = a => a.alt_baro === 'ground';
+  for (const a of list) if (onGround(a)) delete trails[a.hex];
+  blips = list.filter(a => a.lat != null && a.lon != null && !onGround(a)).map(a => {
     const dy = (a.lat - SLAT) * 60;
     const dx = (a.lon - SLON) * Math.cos(SLAT*Math.PI/180) * 60;
     return {hex:a.hex, x:dx, y:dy, flight:(a.flight||'').trim() || a.hex,
