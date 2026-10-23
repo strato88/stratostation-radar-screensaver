@@ -93,7 +93,8 @@ Seguridad** y pulsa **Abrir de todos modos**.
 [radar-minimal.html](radar-minimal.html) es una alternativa reducida de `radar.html`: mismo radar en
 vivo —anillos, barrido, estelas, etiquetas de cada aeronave, reloj— pero sin el panel de la lista/contador
 de aeronaves (abajo a la izquierda) ni el texto de pie de página (línea kicker + METAR abajo en el centro).
-Solo quedan el reloj, la fecha y la etiqueta de la estación en la esquina. Mismo bloque `CONFIG`, mismos
+Solo quedan el reloj, la fecha y la etiqueta de la estación en la esquina, más una lista opcional de
+llegadas encima (ver [Llegadas](#llegadas-opcional-vista-minimal)). Mismo bloque `CONFIG`, mismos
 endpoints del servidor.
 
 También incluye el overlay de costa de la vista con terreno de abajo (`CONFIG.coastUrl`, activado por
@@ -121,6 +122,30 @@ paso el vértice con menor área de triángulo, así los picos finos caen primer
 de suavizado Chaikin (corte de esquinas) para redondear las uniones que queden. Ese es exactamente el
 proceso usado para generar el ejemplo incluido — solo Python estándar (`urllib`, `heapq`), sin
 dependencias extra.
+
+## Llegadas (opcional, vista minimal)
+
+`radar-minimal.html` puede listar las llegadas de hoy a tu aeropuerto justo encima del reloj (OACI de
+origen, vuelo y hora) y marcar en el propio radar los aviones que llegan: un aro fino alrededor del eco
+y una línea más en su etiqueta, `LEBL → 17:41`. Un vuelo con retraso lleva su hora estimada en ámbar; los
+cancelados y desviados, `CNL` / `DIV` en rojo; uno aterrizado hace menos de 15 minutos queda atenuado.
+Si los datos dejan de actualizarse, la lista se atenúa y la cabecera dice `NOT UPDATED SINCE hh:mm`.
+
+Lee `CONFIG.arrivalsUrl` una vez por minuto (`null` lo desactiva; si la URL falla, la lista no aparece).
+El feed es JSON:
+
+```json
+{"ok": true, "leido": 1792771020, "viejo": false,
+ "vuelos": [{"vuelo": "VY 3916", "matricula": "EC-MLD", "origen_icao": "LEBL",
+             "prog": "17:41", "eta": "17:45", "retraso_min": 4, "estado": "en_vuelo"}]}
+```
+
+`estado` es `programado`, `en_vuelo`, `aterrizado`, `en_calzos`, `cancelado` o `desviado`; `leido` es
+cuándo se leyeron los datos (tiempo Unix) y `viejo: true` marca una copia antigua. Cada avión se cruza
+con su llegada por matrícula (`r` en `aircraft.json`, que readsb incluye cuando tiene base de datos de
+aeronaves) o por indicativo (el número de vuelo, traduciendo además códigos IATA de aerolínea como `VY`
+a OACI como `VLG`). Las aerolíneas que vuelan con indicativos alfanuméricos (`EZY57AB`) solo se cruzan
+por matrícula.
 
 ## Despliegue continuo (opcional)
 

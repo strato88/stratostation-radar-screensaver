@@ -11,7 +11,7 @@
 
 :root{
   --bg:#04060c;--ink:#e8f1f8;--dim:#7d8fa5;--cyan:#4fd8eb;
-  --green:#3ddc84;--red:#ff5d6c;--line:rgba(125,143,165,.18);
+  --green:#3ddc84;--red:#ff5d6c;--amber:#e8b46a;--ink2:#a9bccd;--line:rgba(125,143,165,.18);
   --mono:'JetBrains Mono',ui-monospace,monospace;
   --sans:'Space Grotesk',system-ui,sans-serif;
 }
@@ -28,6 +28,25 @@ canvas#radar{position:absolute;inset:0;width:100%;height:100%;display:block}
 .clock{font-size:clamp(28px,3.6vw,46px);color:var(--ink);letter-spacing:.06em}
 .date{font-size:11px;letter-spacing:.2em;margin-top:6px;text-transform:uppercase}
 .station{font-size:10px;letter-spacing:.2em;margin-top:14px;color:var(--dim)}
+
+/* arrivals list, stacked right above the clock (see CONFIG.arrivalsUrl) */
+.arr{margin-bottom:26px;font-size:12px;line-height:16px}
+.arr[hidden]{display:none}
+.arr-h{font-size:10px;letter-spacing:.2em;margin-bottom:12px}
+.arr-h .stale{color:var(--amber)}
+.arr-b{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.arr-b.stale{opacity:.5}
+.arr-r{display:flex;align-items:baseline;justify-content:flex-end;gap:12px;white-space:nowrap}
+.arr-r.landed{opacity:.4}
+.arr-tag{font-size:9px;letter-spacing:.08em;color:var(--red)}
+.arr-icao{letter-spacing:.04em}
+.arr-fl{color:var(--ink2)}
+.arr-fl.seen{color:var(--cyan)}
+.arr-t{color:var(--ink);min-width:5ch}
+.arr-t.late{color:var(--amber)}
+.arr-t.off{color:var(--dim)}
+.arr-t.cnl{text-decoration:line-through}
+.arr-end{font-size:10px;letter-spacing:.2em;margin-top:4px}
 </style>
 </head>
 <body>
@@ -35,6 +54,10 @@ canvas#radar{position:absolute;inset:0;width:100%;height:100%;display:block}
   <canvas id="radar"></canvas>
   <div class="vignette"></div>
   <div class="sky-br">
+    <div class="arr" id="arrivals" hidden>
+      <div class="arr-h">ARRIVALS<span class="stale" id="arr-stale"></span></div>
+      <div class="arr-b" id="arr-body"></div>
+    </div>
     <div class="clock"><span id="clk-h">--</span>:<span id="clk-m">--</span>:<span id="clk-s">--</span></div>
     <div class="date" id="hud-date">—</div>
     <div class="station" id="station-label"></div>
@@ -56,6 +79,8 @@ const CONFIG = {
   refreshMs: 10000,           // data refresh interval (ms)
   locale: 'en-GB',            // clock, date & number formatting locale (e.g. 'es-ES', 'en-US')
   sweepMs: 3200,              // one full sweep revolution (ms)
+  arrivalsUrl: '/dashboard/llegadas/data', // arrivals feed (see README "Arrivals") — null to disable
+  arrivalsMax: 5,             // rows in the arrivals list above the clock
   rollMs: 9000,               // "cash register" number roll duration (ms)
   typeMs: 28                  // typewriter effect, ms per character
 };
@@ -118,6 +143,7 @@ function setAircraft(list){
     const dy = (a.lat - SLAT) * 60;
     const dx = (a.lon - SLON) * Math.cos(SLAT*Math.PI/180) * 60;
     return {hex:a.hex, x:dx, y:dy, flight:(a.flight||'').trim() || a.hex,
+            callsign:(a.flight||'').trim(), reg:a.r || '',
             alt:a.alt_baro, gs:a.gs, track:a.track||0, d:Math.hypot(dx,dy)};
   }).filter(b => b.d <= RANGE*1.5)
     .sort((a,b) => a.d - b.d);
@@ -236,9 +262,17 @@ function drawRadar(t){
     let diff = sweep - ((ang % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
     diff = ((diff % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
     const glow = Math.max(.3, 1 - diff/2.4);
+    /* arriving at our airport: thin ring, tinted blip and an "ORIGIN → time" line */
+    const arr = arrivalFor(b);
+    const arrRGB = arr && arr.st === 'div' ? '255,93,108' : '79,216,235';
+    if (arr){
+      rctx.strokeStyle = `rgba(${arrRGB},${arr.st === 'div' ? .5 : .6})`;
+      rctx.lineWidth = 1;
+      rctx.beginPath(); rctx.arc(px, py, 13*RDPR, 0, 7); rctx.stroke();
+    }
     rctx.save();
     rctx.translate(px, py); rctx.rotate(b.track*Math.PI/180);
-    rctx.fillStyle = `rgba(170,242,255,${glow})`;
+    rctx.fillStyle = arr ? `rgba(${arrRGB},${Math.max(.75, glow)})` : `rgba(170,242,255,${glow})`;
     const u = RDPR*5;
     rctx.beginPath();
     rctx.moveTo(0,-u*1.4); rctx.lineTo(u*.85,u); rctx.lineTo(0,u*.4); rctx.lineTo(-u*.85,u);
@@ -259,8 +293,11 @@ function drawRadar(t){
     const flightW = rctx.measureText(b.flight).width;
     rctx.font = `${8.5*RDPR}px JetBrains Mono, monospace`;
     const tagsW = tagsStr ? rctx.measureText(tagsStr).width : 0;
-    const labelW = Math.max(flightW, tagsW);
-    const labelH = tagsStr ? 22*RDPR : 12*RDPR;
+    const arrStr = arr ? (arr.st === 'div' ? arr.icao + ' · DIV' : arr.icao + ' → ' + arr.time) : '';
+    const arrW = arrStr ? rctx.measureText(arrStr).width : 0;
+    const labelW = Math.max(flightW, tagsW, arrW);
+    const lines = 1 + (tagsStr ? 1 : 0) + (arrStr ? 1 : 0);
+    const labelH = (12 + (lines - 1)*11)*RDPR;
 
     /* candidate positions spiraling outwards (several radii and both sides)
        so labels spread apart in dense areas */
@@ -282,6 +319,12 @@ function drawRadar(t){
       rctx.fillStyle = `rgba(165,210,228,${glow*.95})`;
       rctx.font = `${8.5*RDPR}px JetBrains Mono, monospace`;
       rctx.fillText(tagsStr, px + chosen.x, py + chosen.y + 12*RDPR);
+    }
+    if (arrStr){
+      const rgb = arr.st === 'div' ? '255,93,108' : arr.late ? '232,180,106' : '79,216,235';
+      rctx.fillStyle = `rgba(${rgb},${Math.max(.7, glow)})`;
+      rctx.font = `${8.5*RDPR}px JetBrains Mono, monospace`;
+      rctx.fillText(arrStr, px + chosen.x, py + chosen.y + (tagsStr ? 23 : 12)*RDPR);
     }
   }
   requestAnimationFrame(drawRadar);
@@ -313,11 +356,117 @@ setInterval(tick, 1000);
 /* static texts: typed once on startup */
 typeText(document.getElementById('station-label'), CONFIG.stationLabel);
 
+/* =====================================================================
+   ARRIVALS — today's arrivals at the station's airport, listed above the
+   clock; the ones visible on the radar are also marked on their blip.
+   Feed: {ok, vuelos:[{vuelo, matricula, origen_icao, prog, eta, estado,
+   retraso_min}], viejo, leido} (see README "Arrivals").
+   ===================================================================== */
+let arrFlights = null;          /* last good list from the feed, null until the first one */
+let arrReadAt = 0, arrOld = false, arrIndex = new Map();
+const LATE_MIN = 3;             /* from this delay on, the time is shown in amber */
+const STALE_MS = 10*60000;      /* no fresh data for this long → "NOT UPDATED SINCE" */
+const normId = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const hmMin = t => { const p = String(t || '').split(':'); return p.length === 2 ? (+p[0])*60 + (+p[1]) : null; };
+/* IATA → ICAO airline prefixes, so a flight number like "VY 3916" also matches
+   the ADS-B callsign "VLG3916" when the receiver doesn't know the registration */
+const ICAO_OF = {VY:['VLG'],FR:['RYR'],U2:['EZY','EJU','EZS'],IB:['IBE'],I2:['IBS'],UX:['AEA'],
+  LS:['EXS'],BY:['TOM'],X3:['TUI'],HV:['TRA'],TO:['TVF'],BA:['BAW'],EW:['EWG'],LH:['DLH'],
+  LX:['SWR'],AF:['AFR'],KL:['KLM'],OS:['AUA'],DY:['NAX','NSZ'],YW:['ANE'],V7:['VOE'],
+  W6:['WZZ'],DE:['CFG'],WK:['EDW'],EI:['EIN'],SN:['BEL'],AZ:['ITY'],TP:['TAP'],SK:['SAS']};
+
+function arrState(v){
+  if (v.estado === 'en_vuelo') return 'air';
+  if (v.estado === 'aterrizado' || v.estado === 'en_calzos') return 'landed';
+  if (v.estado === 'cancelado') return 'cnl';
+  if (v.estado === 'desviado') return 'div';
+  return 'sched';
+}
+function arrKeys(v){
+  const keys = [normId(v.matricula), normId(v.vuelo)];
+  const m = normId(v.vuelo).match(/^([A-Z0-9]{2})(\d{1,4}[A-Z]?)$/);
+  if (m && ICAO_OF[m[1]]) for (const p of ICAO_OF[m[1]]) keys.push(p + m[2].replace(/^0+/, ''));
+  return keys.filter(Boolean);
+}
+function arrivalFor(b){
+  if (!arrIndex.size) return null;
+  return arrIndex.get(normId(b.reg)) || arrIndex.get(normId(b.callsign)) || null;
+}
+
+function renderArrivals(){
+  const box = document.getElementById('arrivals');
+  if (!arrFlights){ box.hidden = true; return; }
+  const now = new Date(), nowMin = now.getHours()*60 + now.getMinutes();
+  const fmt = m => String(Math.floor(m/60)%24).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+  const items = [];
+  arrIndex = new Map();
+  for (const v of arrFlights){
+    const st = arrState(v);
+    const prog = hmMin(v.prog);
+    let eta = hmMin(v.eta);
+    if (eta != null && prog != null && eta < prog - 720) eta += 1440;   /* delayed past midnight */
+    const t = (st === 'cnl' || st === 'div' || eta == null) ? prog : eta;
+    if (t == null) continue;
+    const late = (st === 'air' || st === 'sched') &&
+      ((typeof v.retraso_min === 'number' ? v.retraso_min : (eta != null && prog != null ? eta - prog : 0)) >= LATE_MIN);
+    const it = {v, st, t, late, icao: v.origen_icao || '····', time: fmt(t)};
+    if (st !== 'landed' && st !== 'cnl') for (const k of arrKeys(v)) arrIndex.set(k, it);
+    /* landed: only the last 15 min; the rest: until 20 min past their time (in the air: always) */
+    if (st === 'landed' ? nowMin - t <= 15 : (st === 'air' || t >= nowMin - 20)) items.push(it);
+  }
+  items.sort((a, b) => a.t - b.t);
+  const rows = items.slice(0, CONFIG.arrivalsMax);
+  const pending = items.filter(i => i.st !== 'landed').length;
+  const shownPending = rows.filter(i => i.st !== 'landed').length;
+
+  /* flights whose aircraft is on the radar right now get their number in cyan */
+  const seen = new Set();
+  for (const b of blips){ const a = arrivalFor(b); if (a && a.st !== 'div') seen.add(a); }
+
+  const body = document.getElementById('arr-body');
+  body.replaceChildren();
+  const span = (cls, txt) => { const s = document.createElement('span'); s.className = cls; s.textContent = txt; return s; };
+  for (const it of rows){
+    const r = document.createElement('div');
+    r.className = 'arr-r' + (it.st === 'landed' ? ' landed' : '');
+    if (it.st === 'cnl' || it.st === 'div') r.append(span('arr-tag', it.st === 'cnl' ? 'CNL' : 'DIV'));
+    r.append(span('arr-icao', it.icao),
+             span('arr-fl' + (seen.has(it) ? ' seen' : ''), normId(it.v.vuelo) || '—'),
+             span('arr-t' + (it.late ? ' late' : '') + (it.st === 'cnl' || it.st === 'div' ? ' off' : '') + (it.st === 'cnl' ? ' cnl' : ''), it.time));
+    body.append(r);
+  }
+  if (pending === shownPending) body.append(span('arr-end', 'NO MORE ARRIVALS TODAY'));
+
+  const stale = arrOld || Date.now() - arrReadAt > STALE_MS;
+  const readAt = new Date(arrReadAt);
+  document.getElementById('arr-stale').textContent = stale
+    ? ' · NOT UPDATED SINCE ' + fmt(readAt.getHours()*60 + readAt.getMinutes()) : '';
+  body.classList.toggle('stale', stale);
+  box.hidden = false;
+}
+
+async function refreshArrivals(){
+  try{
+    const d = await (await fetch(CONFIG.arrivalsUrl, {cache:'no-store', credentials:'same-origin'})).json();
+    if (d && d.ok && Array.isArray(d.vuelos)){
+      arrFlights = d.vuelos;
+      arrOld = !!d.viejo;
+      arrReadAt = d.leido ? d.leido*1000 : Date.now();
+    }
+  }catch(e){}            /* keep the last good list; it shows as stale after STALE_MS */
+  renderArrivals();
+}
+if (CONFIG.arrivalsUrl){
+  refreshArrivals();
+  setInterval(refreshArrivals, 60000);
+}
+
 async function refresh(){
   try{
     const a = await (await fetch(CONFIG.aircraftUrl)).json();
     if (a.aircraft) setAircraft(a.aircraft);
   }catch(e){}
+  if (arrFlights) renderArrivals();
 }
 refresh();
 setInterval(refresh, CONFIG.refreshMs);
