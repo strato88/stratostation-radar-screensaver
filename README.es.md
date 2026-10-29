@@ -88,6 +88,12 @@ Seguridad** y pulsa **Abrir de todos modos**.
    como salvapantallas. Opcionalmente instala el `.scr` de Lively desde esa misma pestaña para
    elegirlo desde el diálogo nativo de salvapantallas de Windows.
 
+### Se recarga sola tras un despliegue
+
+Las páginas miran su propio fichero una vez por minuto y se recargan cuando ha cambiado: un
+salvapantallas o un quiosco que pasa días abierto coge la versión nueva un minuto después del
+despliegue, sin tocar la pantalla. Un fallo de red o un fichero a medio escribir nunca la recargan.
+
 ## Vista minimal (sin lista de aeronaves ni texto de pie)
 
 [radar-minimal.html](radar-minimal.html) es una alternativa reducida de `radar.html`: mismo radar en
@@ -126,7 +132,7 @@ dependencias extra.
 ## Llegadas (opcional, vista minimal)
 
 `radar-minimal.html` puede listar las llegadas de hoy a tu aeropuerto justo encima del reloj (OACI de
-origen, vuelo y hora) y marcar en el propio radar los aviones que llegan: un aro fino alrededor del eco
+origen, vuelo y hora; hasta `CONFIG.arrivalsMax` filas, 10 de fábrica, menos en una pantalla baja) y marcar en el propio radar los aviones que llegan: un aro fino alrededor del eco
 y una línea más en su etiqueta, `LEBL → 17:41`. Un vuelo con retraso lleva su hora estimada en ámbar; los
 cancelados y desviados, `CNL` / `DIV` en rojo; uno en el aire, el código del propio aeropuerto en cian
 (`FIR`, `FINAL`, `AIRBORNE`…) cuando el feed lo manda en `estado_raw`; uno aterrizado hace menos de 15 minutos queda atenuado.

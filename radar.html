@@ -376,6 +376,29 @@ async function refresh(){
 }
 refresh();
 setInterval(refresh, CONFIG.refreshMs);
+/* =====================================================================
+   SELF-RELOAD — after every deploy. Once a minute the page asks the server
+   for its own file; when it has changed (and came back whole), it reloads.
+   A network error or a half-written file never triggers a reload.
+   ===================================================================== */
+(function(){
+  const self = location.href.split('#')[0];
+  const sign = t => { let h = 2166136261; for (let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  let loaded = null;
+  async function check(){
+    try{
+      const r = await fetch(self, {cache:'no-store'});
+      if (!r.ok) return;
+      const t = await r.text();
+      if (!/<\/html>\s*$/i.test(t)) return;
+      const s = sign(t);
+      if (loaded === null) loaded = s;
+      else if (s !== loaded) location.reload();
+    }catch(e){}
+  }
+  check();
+  setInterval(check, 60000);
+})();
 </script>
 </body>
 </html>
