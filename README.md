@@ -85,9 +85,9 @@ and click **Open Anyway**.
    screensaver. Optionally install Lively's `.scr` from the same tab to pick it from the native
    Windows screensaver dialog.
 
-### It reloads itself after a deploy
+### The minimal view reloads itself after a deploy
 
-The pages check their own file once a minute and reload when it has changed, so a screensaver
+`radar-minimal.html` checks its own file once a minute and reloads when it has changed, so a screensaver
 or kiosk that stays open for days picks up a new version within a minute of the deploy, with
 nothing to do on the screen. A network error or a half-written file never triggers a reload.
 
