@@ -39,6 +39,7 @@ canvas#radar{position:absolute;inset:0;width:100%;height:100%;display:block}
 .arr-r{display:flex;align-items:baseline;justify-content:flex-end;gap:12px;white-space:nowrap}
 .arr-r.landed{opacity:.4}
 .arr-tag{font-size:9px;letter-spacing:.08em;color:var(--red)}
+.arr-tag.air{color:var(--cyan)}
 .arr-icao{letter-spacing:.04em}
 .arr-fl{color:var(--ink2)}
 .arr-fl.seen{color:var(--cyan)}
@@ -368,7 +369,7 @@ typeText(document.getElementById('station-label'), CONFIG.stationLabel);
    ARRIVALS — today's arrivals at the station's airport, listed above the
    clock; the ones visible on the radar are also marked on their blip.
    Feed: {ok, vuelos:[{vuelo, matricula, origen_icao, prog, eta, estado,
-   retraso_min}], viejo, leido} (see README "Arrivals").
+   estado_raw, retraso_min}], viejo, leido} (see README "Arrivals").
    ===================================================================== */
 let arrFlights = null;          /* last good list from the feed, null until the first one */
 let arrReadAt = 0, arrOld = false, arrIndex = new Map();
@@ -389,6 +390,13 @@ function arrState(v){
   if (v.estado === 'cancelado') return 'cnl';
   if (v.estado === 'desviado') return 'div';
   return 'sched';
+}
+/* the airport's own code for a flight in the air (FIR, FINAL, AIRBORNE…), shown as
+   it comes; the source spells AIRBORNE without the R, so it is fixed here */
+const RAW_FIX = {AIRBONE:'AIRBORNE'};
+function arrCode(v){
+  const c = String(v.estado_raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  return RAW_FIX[c] || c;
 }
 function arrKeys(v){
   const keys = [normId(v.matricula), normId(v.vuelo)];
@@ -438,6 +446,7 @@ function renderArrivals(){
     const r = document.createElement('div');
     r.className = 'arr-r' + (it.st === 'landed' ? ' landed' : '');
     if (it.st === 'cnl' || it.st === 'div') r.append(span('arr-tag', it.st === 'cnl' ? 'CNL' : 'DIV'));
+    else if (it.st === 'air' && arrCode(it.v)) r.append(span('arr-tag air', arrCode(it.v)));
     r.append(span('arr-icao', it.icao),
              span('arr-fl' + (seen.has(it) ? ' seen' : ''), normId(it.v.vuelo) || '—'),
              span('arr-t' + (it.late ? ' late' : '') + (it.st === 'cnl' || it.st === 'div' ? ' off' : '') + (it.st === 'cnl' ? ' cnl' : ''), it.time));

@@ -128,7 +128,8 @@ dependencias extra.
 `radar-minimal.html` puede listar las llegadas de hoy a tu aeropuerto justo encima del reloj (OACI de
 origen, vuelo y hora) y marcar en el propio radar los aviones que llegan: un aro fino alrededor del eco
 y una línea más en su etiqueta, `LEBL → 17:41`. Un vuelo con retraso lleva su hora estimada en ámbar; los
-cancelados y desviados, `CNL` / `DIV` en rojo; uno aterrizado hace menos de 15 minutos queda atenuado.
+cancelados y desviados, `CNL` / `DIV` en rojo; uno en el aire, el código del propio aeropuerto en cian
+(`FIR`, `FINAL`, `AIRBORNE`…) cuando el feed lo manda en `estado_raw`; uno aterrizado hace menos de 15 minutos queda atenuado.
 Si los datos dejan de actualizarse, la lista se atenúa y la cabecera dice `NOT UPDATED SINCE hh:mm`.
 
 Lee `CONFIG.arrivalsUrl` una vez por minuto (`null` lo desactiva; si la URL falla, la lista no aparece).
@@ -140,7 +141,8 @@ El feed es JSON:
              "prog": "17:41", "eta": "17:45", "retraso_min": 4, "estado": "en_vuelo"}]}
 ```
 
-`estado` es `programado`, `en_vuelo`, `aterrizado`, `en_calzos`, `cancelado` o `desviado`; `leido` es
+`estado` es `programado`, `en_vuelo`, `aterrizado`, `en_calzos`, `cancelado` o `desviado`;
+`estado_raw` (opcional) es el código de estado del propio aeropuerto, que se enseña tal cual en los vuelos en el aire; `leido` es
 cuándo se leyeron los datos (tiempo Unix) y `viejo: true` marca una copia antigua. Cada avión se cruza
 con su llegada por matrícula (`r` en `aircraft.json`, que readsb incluye cuando tiene base de datos de
 aeronaves) o por indicativo (el número de vuelo, traduciendo además códigos IATA de aerolínea como `VY`
