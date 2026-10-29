@@ -85,6 +85,12 @@ and click **Open Anyway**.
    screensaver. Optionally install Lively's `.scr` from the same tab to pick it from the native
    Windows screensaver dialog.
 
+### It reloads itself after a deploy
+
+The pages check their own file once a minute and reload when it has changed, so a screensaver
+or kiosk that stays open for days picks up a new version within a minute of the deploy, with
+nothing to do on the screen. A network error or a half-written file never triggers a reload.
+
 ## Minimal view (no aircraft list, no footer text)
 
 [radar-minimal.html](radar-minimal.html) is a stripped-down alternative to `radar.html`: same live
@@ -120,7 +126,7 @@ dependencies.
 ## Arrivals (optional, minimal view)
 
 `radar-minimal.html` can list today's arrivals at your airport right above the clock (origin ICAO,
-flight, time) and mark the arriving aircraft on the radar itself: a thin ring around the blip and an
+flight, time; up to `CONFIG.arrivalsMax` rows, 10 by default, fewer on a short screen) and mark the arriving aircraft on the radar itself: a thin ring around the blip and an
 extra label line, `LEBL → 17:41`. A delayed flight shows its estimated time in amber; cancelled and
 diverted ones carry `CNL` / `DIV` in red; a flight in the air carries the airport's own code in cyan
 (`FIR`, `FINAL`, `AIRBORNE`…) when the feed sends it in `estado_raw`; a flight landed in the last 15 minutes stays dimmed. If the
