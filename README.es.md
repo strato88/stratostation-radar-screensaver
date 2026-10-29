@@ -88,9 +88,9 @@ Seguridad** y pulsa **Abrir de todos modos**.
    como salvapantallas. Opcionalmente instala el `.scr` de Lively desde esa misma pestaña para
    elegirlo desde el diálogo nativo de salvapantallas de Windows.
 
-### Se recarga sola tras un despliegue
+### La vista minimal se recarga sola tras un despliegue
 
-Las páginas miran su propio fichero una vez por minuto y se recargan cuando ha cambiado: un
+`radar-minimal.html` mira su propio fichero una vez por minuto y se recarga cuando ha cambiado: un
 salvapantallas o un quiosco que pasa días abierto coge la versión nueva un minuto después del
 despliegue, sin tocar la pantalla. Un fallo de red o un fichero a medio escribir nunca la recargan.
 
